@@ -13,9 +13,6 @@ Festival_bend(id_festival*, datum_od*, id_bend*)
 Koncert_muzicar_bend(id_koncert*, id_muzicar*, id_bend*)
 
 Да се напише DML израз со кој ќе се вратат имињата и презимињата на гитаристите (музичарите кои свират на инструментот гитара) кои настапиле на концерт заедно со бенд откако го напуштиле. Датумот на настап на музичарот заедно со бендот е датумот на самиот концерт. Резултатите треба да се подредени според името во растечки редослед.
-
-SQL
-
 SELECT DISTINCT ime, prezime
 FROM Muzicar m
 JOIN Muzicar_bend mb ON m.id = mb.id_muzicar
@@ -25,10 +22,8 @@ JOIN Muzicar_instrument mii ON m.id = mii.id_muzicar
 WHERE k.datum > mb.datum_napustanje
 AND instrument = 'gitara'
 ORDER BY ime ASC;
+
 Да се напише DML израз со кој за секој фестивал ќе се врати името, цената на билетите, капацитетот на посетители, бројот на одржувања и вкупниот број на различни бендови кои настапиле.
-
-SQL
-
 SELECT f.ime, n.cena, n.kapacitet, COUNT(DISTINCT fd.datum_od) AS broj_odrzuvanja, COUNT(DISTINCT fb.id_bend) AS broj_bendovi
 FROM Festival f
 JOIN Nastan n ON f.id = n.id
@@ -36,81 +31,10 @@ JOIN Festival_odrzuvanje fd ON fd.id = f.id
 JOIN Festival_bend fb ON fb.id_festival = f.id
 GROUP BY f.ime, n.cena, n.kapacitet
 ORDER BY n.kapacitet DESC;
+
 Да се напише DML израз со кој ќе се вратат сите парови на бендови (пар од имињата на бендовите) кои се основани во иста година.
-
-SQL
-
 SELECT B1.ime AS B1, B2.ime AS B2
 FROM Bend B1
 JOIN Bend B2 ON B1.id <> B2.id
 AND B1.godina_osnovanje = B2.godina_osnovanje
 AND B1.ime > B2.ime;
-Шема: Планирање на патувања
-Релационата база е дефинирана преку следните релации:
-
-Korisnik(kor_ime, ime, prezime, pol, data_rag, data_reg)
-Korisnik_email(kor_ime*, email)
-Mesto(id, ime)
-Poseta(kor_ime*, id_mesto*, datum)
-Grad(id_mesto*, drzava)
-Objekt(id_mesto*, adresa, geo_shirina, geo_dolzina, id_grad*)
-Sosedi(grad1*, grad2*, rastojanie)
-
-Да се напише DML израз со кој ќе се вратат името и презимето на корисниците кои во ист ден посетиле објекти кои се наоѓаат во соседни градови.
-
-SQL
-
-SELECT DISTINCT k.ime, k.prezime
-FROM Poseta p1
-JOIN Poseta p2 ON p1.kor_ime = p2.kor_ime AND p1.datum = p2.datum AND p1.id_mesto <> p2.id_mesto
-JOIN Objekt o1 ON p1.id_mesto = o1.id_mesto
-JOIN Objekt o2 ON p2.id_mesto = o2.id_mesto
-JOIN Sosedi s ON (s.grad1 = o1.id_grad AND s.grad2 = o2.id_grad) OR (s.grad2 = o1.id_grad AND s.grad1 = o2.id_grad)
-JOIN Korisnik k ON k.kor_ime = p1.kor_ime;
-Да се напише DML израз со кој ќе се вратат името и презимето на корисниците кои посетиле објекти кои се наоѓаат во соседни градови чие растојание е помало од 300 km.
-
-SQL
-
-SELECT DISTINCT k.ime, k.prezime
-FROM Poseta p1
-JOIN Poseta p2 ON p2.kor_ime = p1.kor_ime AND p1.id_mesto <> p2.id_mesto
-JOIN Objekt o1 ON p1.id_mesto = o1.id_mesto
-JOIN Objekt o2 ON p2.id_mesto = o2.id_mesto
-JOIN Sosedi s ON (o1.id_grad = s.grad1 AND o2.id_grad = s.grad2) OR (o1.id_grad = s.grad2 AND o2.id_grad = s.grad1)
-JOIN Korisnik k ON p1.kor_ime = k.kor_ime
-WHERE s.rastojanie < 300;
-Да се напише DML израз со кој ќе се врати името на градот во кој се наоѓа објектот што бил посетен најголем број пати.
-
-SQL
-
-WITH posbrpat AS (
-    SELECT p.id_mesto, COUNT(*) AS Kaunt
-    FROM Poseta p
-    JOIN Objekt o ON p.id_mesto = o.id_mesto
-    GROUP BY p.id_mesto
-)
-SELECT m.ime
-FROM posbrpat ppbr
-JOIN Objekt o ON ppbr.id_mesto = o.id_mesto
-JOIN Mesto m ON m.id = o.id_grad
-WHERE ppbr.Kaunt = (SELECT MAX(Kaunt) FROM posbrpat);
-Да се напише DML израз со кој ќе се вратат имињата на објектите кои се наоѓаат во градот што бил посетен најголем број пати. За посети на градови се сметаат посетите на места што претставуваат градови. Во ова не се вклучени посетите на објекти во тие градови.
-
-SQL
-
-WITH MVC AS (
-    SELECT g.id_mesto, COUNT(*) as Most_Visit_city
-    FROM Grad g
-    JOIN Poseta p ON p.id_mesto = g.id_mesto
-    GROUP BY g.id_mesto
-),
-Maximum AS (
-    SELECT MAX(Most_Visit_city) AS maxi
-    FROM MVC
-)
-SELECT M.ime
-FROM MVC mvcc
-JOIN Maximum maxim ON mvcc.Most_Visit_city = maxim.maxi
-JOIN Objekt O ON mvcc.id_mesto = O.id_grad
-JOIN Mesto M ON M.id = O.id_mesto
-ORDER BY 1 DESC;
